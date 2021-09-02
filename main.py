@@ -57,13 +57,30 @@ async def on_message(message):
         count = 10 #if not, set the count to 10
       await message.channel.send(coinFlipper(count)) #make the bot send a message with the results of the coin flipping
 
-    #CREATES USER LIST
-    if message.content.startswith('$getUsers'):
-      await message.channel.send(getUsers(message))
+    #A list of all functions that the average user would need
+    if message.content.startswith('$functions'):
+
+      functionList = discord.Embed(title = "Functions", description="List of Functions on the Server", color = 0x00ff00) #Starts the embed off with the title and description, there can be other arguments if needed.
+
+      functionList.add_field(name="$flip", value="flips a coin 10 times(if you put a integer after the call, it will flip that many times", inline=True) #This is how you add a line in the embed 
+
+
+      await message.channel.send(embed=functionList)
 
     #KILLS DEVIN
     if message.content.startswith('$KillDevin'):
       await message.channel.send('<:susgun:813259245901316097> <@!121443744242335746>')
+
+
+
+
+
+    #ADMIN FUNCTIONS
+
+
+    #CREATES USER LIST
+    if message.content.startswith('$getUsers'):
+      await message.channel.send(getUsers(message))
 
 stay_running() #Starts the webserver to keep the bot running
 client.run(os.environ['Token']) #Turns the bot on
