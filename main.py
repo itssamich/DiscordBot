@@ -5,6 +5,10 @@ import random
 
 client = discord.Client()
 
+def getUser(id):
+  print(id)
+  return  client.get_all_members()
+
 #Flips an amount of coins and returns the amount of both heads and tails along with the percentage of heads
 def coinFlipper(counter):
   heads = 0
@@ -42,8 +46,14 @@ async def on_message(message):
     if message.content.startswith('$test'):
         await message.channel.send('Test!')
 
-    if message.content.startswith('$KillDevin'):
-      await message.channel.send(':susgun: @Dodo/Devin')
+    if message.content.startswith('$user'):
+      await message.channel.send(message.author.mention)
 
+    if message.content.startswith('$KillDevin'):
+     await message.channel.send('<:susgun:813259245901316097>')
+
+#813259245901316097
+#<@1041>
+#client.get_all_members
 stay_running() #Starts the webserver to keep the bot running
 client.run(os.environ['Token']) #Turns the bot on
