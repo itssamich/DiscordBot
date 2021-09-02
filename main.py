@@ -63,10 +63,17 @@ async def on_message(message):
 
       functionList = discord.Embed(title = "Functions", description="List of Functions on the Server", color = 0x00ff00) #Starts the embed off with the title and description, there can be other arguments if needed.
 
-      functionList.add_field(name="$flip", value="flips a coin 10 times(if you put a integer after the call, it will flip that many times", inline=True) #This is how you add a line in the embed 
+      functionList.add_field(name="$flip", value="flips a coin 10 times(if you put a integer after the call, it will flip that many times", inline=False) #This is how you add a line in the embed 
 
+      functionList.add_field(name = "$docs",value = "View source code",inline= False)
 
       await message.channel.send(embed=functionList)
+
+    if message.content.startswith('$docs'):
+      await message.channel.send("View my source code at: https://github.com/itssamich/DiscordBot")
+      
+
+
 
     #KILLS DEVIN
     if message.content.startswith('$KillDevin'):
