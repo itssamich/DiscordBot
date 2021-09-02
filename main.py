@@ -19,9 +19,22 @@ def coinFlipper(counter):
     else:
       tails +=1
 
-  result = "heads: ", heads, " tails: ", tails, " percentage of heads: ", round((heads/(heads+tails)*100), 2), "%"
+  result = "Heads: " + str(heads) + "\nTails: " + str(tails) + "\nPercentage of Heads: " + str(round((heads/(heads+tails)*100), 2)) + "%"
 
   return result
+
+#Using the member list of the server, creates a list of all the current users and some basic information
+def getUsers(message):
+  memberData = '' #Cretes an emptry string to hold all values. This could be done better with an array handling values but... :/
+  for member in message.guild.members: #Finds all the members that are currently in the server/guild
+          
+    memberData += 'ID: ' + str(member.id) #Adds the user's ID to the list !THIS IS FINE TO BE PUBLIC 
+    memberData += '\nDisplayName: ' + member.display_name
+    #Adds the user's server nickname to the list
+    memberData += '\nUserName: ' + member.name + '#' + member.discriminator + '\n\n'
+    #Adds the user's discord name and the 4 digit discriminator
+
+  return memberData
 
 @client.event
 async def on_ready():
@@ -29,11 +42,14 @@ async def on_ready():
 
 @client.event
 async def on_message(message):
+
+    #Checks if the current message was written by the bot or not, prevents an infinite loop
     if message.author == client.user:
         return
 
-    if message.content.startswith('$coinflip'):
 
+    #COINFLIP GAME
+    if message.content.startswith('$flip'):
       msg = message.content.split(' ', 1) #Splits the user's input to get the amount of flips
       if len(msg) > 1: #Checks to see if the user gave an amount
         count = int(msg[1]) #if they did, set it to count
@@ -41,18 +57,13 @@ async def on_message(message):
         count = 10 #if not, set the count to 10
       await message.channel.send(coinFlipper(count)) #make the bot send a message with the results of the coin flipping
 
-    if message.content.startswith('$test'):
-        await message.channel.send('Test!')
-
+    #CREATES USER LIST
     if message.content.startswith('$getUsers'):
-      for member in message.guild.members:
-          await message.channel.send(member.display_name)
+      await message.channel.send(getUsers(message))
 
+    #KILLS DEVIN
     if message.content.startswith('$KillDevin'):
       await message.channel.send('<:susgun:813259245901316097> <@!121443744242335746>')
-
-#282586274391654401
-#121443744242335746
 
 stay_running() #Starts the webserver to keep the bot running
 client.run(os.environ['Token']) #Turns the bot on
