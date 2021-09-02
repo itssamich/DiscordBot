@@ -3,6 +3,7 @@ import discord
 import os
 import random
 
+#I live here now
 
 intents = discord.Intents.all()
 client = discord.Client(intents=intents)
