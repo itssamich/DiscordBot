@@ -42,5 +42,8 @@ async def on_message(message):
     if message.content.startswith('$test'):
         await message.channel.send('Test!')
 
+    if message.content.startswith('$KillDevin'):
+      await message.channel.send(':susgun: @Dodo/Devin')
+
 stay_running() #Starts the webserver to keep the bot running
 client.run(os.environ['Token']) #Turns the bot on
