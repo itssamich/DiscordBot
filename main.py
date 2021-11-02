@@ -14,6 +14,9 @@ from discord.ext import commands
 
 # Try to add: Self deleting messages after song completion, delete the message that calls the bot to play the song, reaction controls, have to fix 
 
+currentSongDur = 0 # This is the most scuffed way I could ever do this. It allows for the song duration to be passed around but this NEEDS to bet tested more. If my hunch is correct, then this is 100% needed to be an array where you pop the first song after completion. But it's 7AM and I need to sleep. Will test soonish :)
+
+
 prefix = '!' # This is here in hopes of a future implementation of custom prefixes
 bot = commands.Bot(prefix)
 
@@ -74,7 +77,8 @@ class YTDLSource(discord.PCMVolumeTransformer):
         self.requester = ctx.author
         self.channel = ctx.channel
         self.data = data
-
+        global currentSongDur
+        currentSongDur = int(data.get('duration'))
         self.uploader = data.get('uploader')
         self.uploader_url = data.get('uploader_url')
         date = data.get('upload_date')
@@ -96,7 +100,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
     @classmethod
     async def create_source(cls, ctx: commands.Context, search: str, *, loop: asyncio.BaseEventLoop = None):
         loop = loop or asyncio.get_event_loop()
-
+      
         partial = functools.partial(cls.ytdl.extract_info, search, download=False, process=False)
         data = await loop.run_in_executor(None, partial)
 
@@ -136,6 +140,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     @staticmethod
     def parse_duration(duration: int):
+        print(currentSongDur)
         minutes, seconds = divmod(duration, 60)
         hours, minutes = divmod(minutes, 60)
         days, hours = divmod(hours, 24)
@@ -200,7 +205,7 @@ class VoiceState:
     def __init__(self, bot: commands.Bot, ctx: commands.Context):
         self.bot = bot
         self._ctx = ctx
-
+        global currentSongDur
         self.current = None
         self.voice = None
         self.next = asyncio.Event()
@@ -234,7 +239,7 @@ class VoiceState:
     @property
     def is_playing(self):
         return self.voice and self.current
-
+    
     async def audio_player_task(self):
         while True:
             self.next.clear()
@@ -253,7 +258,7 @@ class VoiceState:
 
             self.current.source.volume = self._volume
             self.voice.play(self.current.source, after=self.play_next_song)
-            await self.current.source.channel.send(embed=self.current.create_embed())
+            await self.current.source.channel.send(embed=self.current.create_embed(), delete_after = currentSongDur)
 
             await self.next.wait()
 
@@ -261,6 +266,7 @@ class VoiceState:
         if error:
             raise VoiceError(str(error))
 
+        
         self.next.set()
 
     def skip(self):
@@ -304,7 +310,7 @@ class Music(commands.Cog):
         ctx.voice_state = self.get_voice_state(ctx)
 
     async def cog_command_error(self, ctx: commands.Context, error: commands.CommandError):
-        await ctx.send('An error occurred: {}'.format(str(error)))
+        await ctx.send('An error occurred: {}'.format(str(error)), delete_after=7)
 
     @commands.command(name='join', invoke_without_subcommand=True)
     async def _join(self, ctx: commands.Context):
@@ -325,7 +331,7 @@ class Music(commands.Cog):
         """
 
         if not channel and not ctx.author.voice:
-            raise VoiceError('You are neither connected to a voice channel nor specified a channel to join.')
+            raise VoiceError('You are neither connected to a voice channel nor specified a channel to join.', delete_after=7)
 
         destination = channel or ctx.author.voice.channel
         if ctx.voice_state.voice:
@@ -340,7 +346,7 @@ class Music(commands.Cog):
         """Clears the queue and leaves the voice channel."""
 
         if not ctx.voice_state.voice:
-            return await ctx.send('Not connected to any voice channel.')
+            return await ctx.send('Not connected to any voice channel.', delete_after=7)
 
         await ctx.voice_state.stop()
         del self.voice_states[ctx.guild.id]
@@ -350,13 +356,13 @@ class Music(commands.Cog):
         """Sets the volume of the player."""
 
         if not ctx.voice_state.is_playing:
-            return await ctx.send('Nothing being played at the moment.')
+            return await ctx.send('Nothing being played at the moment.', delete_after=7)
 
         if 0 > volume > 100:
-            return await ctx.send('Volume must be between 0 and 100')
+            return await ctx.send('Volume must be between 0 and 100', delete_after=7)
 
         ctx.voice_state.volume = volume / 100
-        await ctx.send('Volume of the player set to {}%'.format(volume))
+        await ctx.send('Volume of the player set to {}%'.format(volume), delete_after=7)
 
     @commands.command(name='now', aliases=['current', 'playing', 'np'])
     async def _now(self, ctx: commands.Context): # Shows the embed for the current song
@@ -393,10 +399,13 @@ class Music(commands.Cog):
     @commands.command(name='fs', aliases=['skip'])
     async def _skip(self, ctx: commands.Context):  # Skips the current song and moves to the next in queue
         
+        await ctx.message.delete()
+
         if not ctx.voice_state.is_playing:
-            return await ctx.send('Not playing any music right now...')
+            return await ctx.send('Not playing any music right now...', delete_after=7)
         else:
-          await ctx.send('Skipping...')
+          
+          await ctx.send('Skipping...', delete_after=7)
           ctx.voice_state.skip()
           
 
@@ -405,7 +414,7 @@ class Music(commands.Cog):
     async def _queue(self, ctx: commands.Context, *, page: int = 1):  # Shows the user the current queue
         
         if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty queue.')
+            return await ctx.send('Empty queue.', delete_after=7)
 
         items_per_page = 10
         pages = math.ceil(len(ctx.voice_state.songs) / items_per_page)
@@ -425,7 +434,7 @@ class Music(commands.Cog):
     async def _shuffle(self, ctx: commands.Context): # Shuffles the order of the songs in queue
 
         if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty queue.')
+            return await ctx.send('Empty queue.', delete_after=7)
 
         ctx.voice_state.songs.shuffle()
         await ctx.message.add_reaction('✅')
@@ -434,7 +443,7 @@ class Music(commands.Cog):
     async def _remove(self, ctx: commands.Context, index: int): # Removes a song at a given position
 
         if len(ctx.voice_state.songs) == 0:
-            return await ctx.send('Empty queue.')
+            return await ctx.send('Empty queue.', delete_after=7)
 
         ctx.voice_state.songs.remove(index - 1)
         await ctx.message.add_reaction('✅')
@@ -443,7 +452,7 @@ class Music(commands.Cog):
     async def _loop(self, ctx: commands.Context):  # Continues to play the same song until called again
 
         if not ctx.voice_state.is_playing:
-            return await ctx.send('Nothing being played at the moment.')
+            return await ctx.send('Nothing being played at the moment.', delete_after=7)
 
         # Inverse boolean value to loop and unloop.
         ctx.voice_state.loop = not ctx.voice_state.loop
@@ -469,17 +478,17 @@ class Music(commands.Cog):
                 song = Song(source)
 
                 await ctx.voice_state.songs.put(song)
-                await ctx.send('{} was added to the queue'.format(str(source)), delete_after=15)
+                await ctx.send('{} was added to the queue'.format(str(source), delete_after=7), delete_after=7)
 
     @_join.before_invoke
     @_play.before_invoke
     async def ensure_voice_state(self, ctx: commands.Context):
         if not ctx.author.voice or not ctx.author.voice.channel:
-            raise commands.CommandError('You are not connected to any voice channel.')
+            raise commands.CommandError('You are not connected to any voice channel.', delete_after=7)
 
         if ctx.voice_client:
             if ctx.voice_client.channel != ctx.author.voice.channel:
-                raise commands.CommandError('Bot is already in a voice channel.')
+                raise commands.CommandError('Bot is already in a voice channel.', delete_after=7)
 
 
 
