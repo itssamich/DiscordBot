@@ -12,9 +12,29 @@ import youtube_dl
 from async_timeout import timeout
 from discord.ext import commands
 
+# Try to add: Self deleting messages after song completion, delete the message that calls the bot to play the song, reaction controls, have to fix 
+
+prefix = '!' # This is here in hopes of a future implementation of custom prefixes
+bot = commands.Bot(prefix)
+
+@bot.event
+async def on_ready(): # Prints to the console when the bot is ready to go
+    print('Logged in as:\n{0.user.name}\n{0.user.id}'.format(bot))
+
+@bot.command()
+async def functions(ctx): # Creates an embed message with all available commands
+  embed=discord.Embed(title="Functions", description="A list of functions for Sandwich-Bot", color=0xb900d1)
+
+  await ctx.send(embed=embed)
+
+
+
+
+
+# MUSIC BOT CODE FROM https://gist.github.com/vbe0201/ade9b80f2d3b64643d854938d40a0a2d
+
 # Silence useless bug reports messages
 youtube_dl.utils.bug_reports_message = lambda: ''
-
 
 class VoiceError(Exception):
     pass
@@ -43,7 +63,7 @@ class YTDLSource(discord.PCMVolumeTransformer):
 
     FFMPEG_OPTIONS = {
         'before_options': '-reconnect 1 -reconnect_streamed 1 -reconnect_delay_max 5',
-        'options': '-vn',
+        'options': '-vn' ,
     }
 
     ytdl = youtube_dl.YoutubeDL(YTDL_OPTIONS)
@@ -225,7 +245,7 @@ class VoiceState:
                 # the player will disconnect due to performance
                 # reasons.
                 try:
-                    async with timeout(180):  # 3 minutes
+                    async with timeout(600):  # 3 minutes
                         self.current = await self.songs.get()
                 except asyncio.TimeoutError:
                     self.bot.loop.create_task(self.stop())
@@ -338,16 +358,14 @@ class Music(commands.Cog):
         ctx.voice_state.volume = volume / 100
         await ctx.send('Volume of the player set to {}%'.format(volume))
 
-    @commands.command(name='now', aliases=['current', 'playing'])
-    async def _now(self, ctx: commands.Context):
-        """Displays the currently playing song."""
-
+    @commands.command(name='now', aliases=['current', 'playing', 'np'])
+    async def _now(self, ctx: commands.Context): # Shows the embed for the current song
+        print(self.source.duration)
         await ctx.send(embed=ctx.voice_state.current.create_embed())
 
     @commands.command(name='pause')
     @commands.has_permissions(manage_guild=True)
-    async def _pause(self, ctx: commands.Context):
-        """Pauses the currently playing song."""
+    async def _pause(self, ctx: commands.Context): # Pauses the song
 
         if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_playing():
             ctx.voice_state.voice.pause()
@@ -355,17 +373,16 @@ class Music(commands.Cog):
 
     @commands.command(name='resume')
     @commands.has_permissions(manage_guild=True)
-    async def _resume(self, ctx: commands.Context):
-        """Resumes a currently paused song."""
+    async def _resume(self, ctx: commands.Context): # Resumes the song if stopped
 
         if not ctx.voice_state.is_playing and ctx.voice_state.voice.is_paused():
             ctx.voice_state.voice.resume()
             await ctx.message.add_reaction('⏯')
 
+
     @commands.command(name='stop')
     @commands.has_permissions(manage_guild=True)
-    async def _stop(self, ctx: commands.Context):
-        """Stops playing song and clears the queue."""
+    async def _stop(self, ctx: commands.Context): # Stops the current song and clears queue
 
         ctx.voice_state.songs.clear()
 
@@ -373,39 +390,20 @@ class Music(commands.Cog):
             ctx.voice_state.voice.stop()
             await ctx.message.add_reaction('⏹')
 
-    @commands.command(name='skip')
-    async def _skip(self, ctx: commands.Context):
-        """Vote to skip a song. The requester can automatically skip.
-        3 skip votes are needed for the song to be skipped.
-        """
-
+    @commands.command(name='fs', aliases=['skip'])
+    async def _skip(self, ctx: commands.Context):  # Skips the current song and moves to the next in queue
+        
         if not ctx.voice_state.is_playing:
             return await ctx.send('Not playing any music right now...')
-
-        voter = ctx.message.author
-        if voter == ctx.voice_state.current.requester:
-            await ctx.message.add_reaction('⏭')
-            ctx.voice_state.skip()
-
-        elif voter.id not in ctx.voice_state.skip_votes:
-            ctx.voice_state.skip_votes.add(voter.id)
-            total_votes = len(ctx.voice_state.skip_votes)
-
-            if total_votes >= 3:
-                await ctx.message.add_reaction('⏭')
-                ctx.voice_state.skip()
-            else:
-                await ctx.send('Skip vote added, currently at **{}/3**'.format(total_votes))
-
         else:
-            await ctx.send('You have already voted to skip this song.')
+          await ctx.send('Skipping...')
+          ctx.voice_state.skip()
+          
+
 
     @commands.command(name='queue')
-    async def _queue(self, ctx: commands.Context, *, page: int = 1):
-        """Shows the player's queue.
-        You can optionally specify the page to show. Each page contains 10 elements.
-        """
-
+    async def _queue(self, ctx: commands.Context, *, page: int = 1):  # Shows the user the current queue
+        
         if len(ctx.voice_state.songs) == 0:
             return await ctx.send('Empty queue.')
 
@@ -424,8 +422,7 @@ class Music(commands.Cog):
         await ctx.send(embed=embed)
 
     @commands.command(name='shuffle')
-    async def _shuffle(self, ctx: commands.Context):
-        """Shuffles the queue."""
+    async def _shuffle(self, ctx: commands.Context): # Shuffles the order of the songs in queue
 
         if len(ctx.voice_state.songs) == 0:
             return await ctx.send('Empty queue.')
@@ -434,8 +431,7 @@ class Music(commands.Cog):
         await ctx.message.add_reaction('✅')
 
     @commands.command(name='remove')
-    async def _remove(self, ctx: commands.Context, index: int):
-        """Removes a song from the queue at a given index."""
+    async def _remove(self, ctx: commands.Context, index: int): # Removes a song at a given position
 
         if len(ctx.voice_state.songs) == 0:
             return await ctx.send('Empty queue.')
@@ -444,10 +440,7 @@ class Music(commands.Cog):
         await ctx.message.add_reaction('✅')
 
     @commands.command(name='loop')
-    async def _loop(self, ctx: commands.Context):
-        """Loops the currently playing song.
-        Invoke this command again to unloop the song.
-        """
+    async def _loop(self, ctx: commands.Context):  # Continues to play the same song until called again
 
         if not ctx.voice_state.is_playing:
             return await ctx.send('Nothing being played at the moment.')
@@ -457,16 +450,15 @@ class Music(commands.Cog):
         await ctx.message.add_reaction('✅')
 
     @commands.command(name='play')
-    async def _play(self, ctx: commands.Context, *, search: str):
-        """Plays a song.
-        If there are songs in the queue, this will be queued until the
-        other songs finished playing.
-        This command automatically searches from various sites if no URL is provided.
+    async def _play(self, ctx: commands.Context, *, search: str):  # Adds songs to the queue
+        """This command automatically searches from various sites if no URL is provided.
         A list of these sites can be found here: https://rg3.github.io/youtube-dl/supportedsites.html
         """
 
         if not ctx.voice_state.voice:
             await ctx.invoke(self._join)
+
+        await ctx.message.delete() # This is used to clear the user message that calls the bot
 
         async with ctx.typing():
             try:
@@ -477,7 +469,7 @@ class Music(commands.Cog):
                 song = Song(source)
 
                 await ctx.voice_state.songs.put(song)
-                await ctx.send('Enqueued {}'.format(str(source)))
+                await ctx.send('{} was added to the queue'.format(str(source)), delete_after=15)
 
     @_join.before_invoke
     @_play.before_invoke
@@ -490,13 +482,10 @@ class Music(commands.Cog):
                 raise commands.CommandError('Bot is already in a voice channel.')
 
 
-bot = commands.Bot('!', description='Yet another music bot.')
+
 bot.add_cog(Music(bot))
 
 
-@bot.event
-async def on_ready():
-    print('Logged in as:\n{0.user.name}\n{0.user.id}'.format(bot))
 
 stay_running() #Starts the webserver to keep the bot running
 bot.run(os.environ['Token']) #Turns the bot on
